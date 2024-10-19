@@ -20,6 +20,8 @@ from scipy.stats import wilcoxon
 from scipy.stats import friedmanchisquare
 import networkx
 
+from utils import check_df_format
+
 def compute_CD(avranks, n, alpha="0.05", test="nemenyi"):
     """
     Returns critical difference for Nemenyi or Bonferroni-Dunn test
@@ -376,8 +378,9 @@ def form_cliques(p_values, nnames):
     return networkx.find_cliques(g)
 
 
-def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alpha=0.05, labels=False, path='exp/tests_lib/cd/uni/',
-                    title=False, style=None, verbose=True, highlight="", mode='wilco_holm', pairwise_matrix=None, ascending=False, full=False):
+def draw_cd_diagram(df, metric='Accuracy', obj_ranked='Strategy', alpha=0.05, labels=False, save=None,
+                    title=False, style=None, verbose=True, highlight="", mode='wilco_holm', 
+                    pairwise_matrix=None, ascending=False, full=False):
     """
     Draws the critical difference diagram given the list of pairwise classifiers that are
     significant or not
@@ -400,24 +403,19 @@ def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alph
     
     """
     
+    check_df_format(df)
+    
     #warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
     if style=='upper':
-        df_perf[obj_ranked] = df_perf[obj_ranked].str.upper()
+        df[obj_ranked] = df[obj_ranked].str.upper()
     elif style=='lower':
-        df_perf[obj_ranked] = df_perf[obj_ranked].str.lower()
+        df[obj_ranked] = df[obj_ranked].str.lower()
     elif style=='title':
-        df_perf[obj_ranked] = df_perf[obj_ranked].str.title()
-        
-    
-        
+        df[obj_ranked] = df[obj_ranked].str.title()
 
-    p_values, average_ranks, _ = wilcoxon_holm(df_perf=df_perf, 
-                                               alpha=alpha, 
-                                               metric=metric,
-                                               obj_ranked=obj_ranked,
-                                               verbose=verbose,
-                                               asc=ascending)
-
+    p_values, average_ranks, _ = wilcoxon_holm(df_perf=df, alpha=alpha, 
+                                               metric=metric, obj_ranked=obj_ranked,
+                                               verbose=verbose, asc=ascending)
     if verbose:
         print(average_ranks)
 
@@ -447,12 +445,12 @@ def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alph
         plt.xticks(np.arange(0,len(pairewise_comparison_df)), pairewise_comparison_df.columns, rotation='vertical', fontsize=15)
         plt.yticks(np.arange(0,len(pairewise_comparison_df)), pairewise_comparison_df.columns, fontsize=15)
         plt.tick_params(axis='y', which='both', labelleft=False, labelright=True)
-        if path:
+        if save:
             if pairwise_matrix is not None:
                 metric_name = 'time-feature' if metric=='Time/feature' else metric
-                if not os.path.isdir(os.path.join(path, 'pairwise_matrix')):
-                    os.mkdir(os.path.join(path, 'pairwise_matrix'))   
-                path_mat = os.path.join(path, 'pairwise_matrix')
+                if not os.save.isdir(os.save.join(save, 'pairwise_matrix')):
+                    os.mkdir(os.save.join(save, 'pairwise_matrix'))   
+                path_mat = os.path.join(save, 'pairwise_matrix')
                 plt.savefig(os.path.join(path_mat, f'pair-matrix-{pairwise_matrix}-{metric_name}.png'), bbox_inches='tight', dpi=250)
         plt.show()
         plt.close()
@@ -461,9 +459,9 @@ def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alph
         scores = []
         for obj in average_ranks.keys():
             if ascending:
-                scores.append(df_perf[df_perf[obj_ranked]==obj][metric].mean() * 1e-2) 
+                scores.append(df[df[obj_ranked]==obj][metric].mean() * 1e-2) 
             else:
-                scores.append(df_perf[df_perf[obj_ranked]==obj][metric].mean())       
+                scores.append(df[df[obj_ranked]==obj][metric].mean())       
     else:
         scores=None
     
@@ -478,7 +476,7 @@ def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alph
         graph_ranks(average_ranks.values, average_ranks.keys(), p_values, lowv=lowv, highv=highv, highlight=highlight,
                     cd=None, reverse=True, width=8, textspace=2, labels=labels, scores=scores)
     elif mode=='nemenyi':
-        n = df_perf.groupby([obj_ranked]).size()[0]
+        n = df.groupby([obj_ranked]).size()[0]
         cd = compute_CD(average_ranks, n, alpha=str(alpha))
         graph_ranks(average_ranks.values, average_ranks.keys(), None, lowv=lowv, highv=highv, highlight=highlight,
                     cd=cd, reverse=True, width=8, textspace=2, labels=labels, scores=scores)
@@ -494,10 +492,10 @@ def draw_cd_diagram(df_perf=None, metric='Accuracy', obj_ranked='Strategy', alph
         }
     if title:
         plt.title(title, fontdict=font, y=0.9, x=0.5)
-    if path:
+    if save:
         if mode is not None:
             metric_name = 'time-feature' if metric=='Time/feature' else metric
-            plt.savefig(os.path.join(path, f'cd-diagram-{mode}-{metric_name}.png'), bbox_inches='tight', dpi=250)
+            plt.savefig(os.path.join(save, f'cd-diagram-{mode}-{metric_name}.png'), bbox_inches='tight', dpi=250)
     plt.show()
     plt.close()
     
@@ -562,7 +560,7 @@ def wilcoxon_holm(alpha=0.05, df_perf=None, metric='Accuracy', obj_ranked='Strat
             break
     # compute the average ranks to be returned (useful for drawing the cd diagram)
     # sort the dataframe of performances
-    sorted_df_perf = df_perf.loc[df_perf[obj_ranked].isin(classifiers)].sort_values([obj_ranked, 'Name'])
+    sorted_df_perf = df_perf.loc[df_perf[obj_ranked].isin(classifiers)].sort_values([obj_ranked, 'dataset'])
     # get the rank data
     rank_data = np.array(sorted_df_perf[metric]).reshape(m, max_nb_datasets)
     

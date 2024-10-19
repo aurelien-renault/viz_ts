@@ -7,14 +7,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import bootstrap
 
+from utils import check_df_format
+
 
 def get_ranks(df, asc=True, agg='mean'):
     
-    # check column names 
-    for col in df.columns:
-        if col not in ["x_parameter", "dataset", "competitor", "metric"]:
-            raise ValueError(f"Column '{col}' not found in provided dataframe")
-    
+    check_df_format(df)
+
     if agg == "":
         agg = None 
 
@@ -55,7 +54,6 @@ def get_ranks(df, asc=True, agg='mean'):
     
     return ranked_df
 
-
 def get_ranks_std(df_flat, confidence_level=0.9):
 
     stds = pd.DataFrame()    
@@ -74,8 +72,7 @@ def get_ranks_std(df_flat, confidence_level=0.9):
 
     return stds.T
 
-
-def bump_chart(df, confidence=True, asc=True, title=None, xlab="parameter",
+def bump_chart(df, confidence=True, asc=True, confidence_level=0.9, title=None, xlab="parameter",
                style_dict={}, add_legend=[], save=None, plot_format='pdf'):
 
     import matplotlib
@@ -92,7 +89,7 @@ def bump_chart(df, confidence=True, asc=True, title=None, xlab="parameter",
     df_mean_rank = get_ranks(df, asc=asc, agg='mean')
     if confidence:
         df_flat = get_ranks(df, asc=asc, agg=None)
-        conf = get_ranks_std(df_flat)
+        conf = get_ranks_std(df_flat, confidence_level=confidence_level)
 
     df = df_mean_rank
 
